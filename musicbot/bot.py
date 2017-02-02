@@ -8,6 +8,7 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import random
 
 from discord import utils
 from discord.object import Object
@@ -33,6 +34,8 @@ from . import downloader
 from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
+
+from urllib.parse import urlparse
 
 
 load_opus_lib()
@@ -711,6 +714,7 @@ class MusicBot(discord.Client):
 
             if owner_vc:
                 print("Done!", flush=True)  # TODO: Change this to "Joined server/channel"
+                # Play entry song if it exists.
                 if self.config.entry_song:
                     player = await self.get_player(owner_vc, create=True)
                     curr_vol = player.volume
@@ -1818,6 +1822,73 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
+    async def cmd_playabanger(self, player, channel, author, permissions, leftover_args):
+        """
+        Usage:
+            {command_prefix}PlayABanger
+
+        Play a random song from the collaborative play list.
+        """
+        selected_song = ""
+        playlist_url = self.config.collab_playlist_url
+        if urlparse(playlist_url).scheme:
+            # It's a valid URL, connect remotely.
+            print("Url")
+        else:
+            if os.path.exists(playlist_url):
+                playlist_file = open(playlist_url, 'r')
+                songs = playlist_file.readlines()
+                playlist_file.close()
+                selected_song = random.choice(songs)
+            else:
+                return Response("Playlist is empty :( Add songs with !AddABanger song_url")
+
+        if not selected_song:
+            return Response("Invalid song found. Check the playlist file!")
+        await self.cmd_play(player, channel, author, permissions, leftover_args, selected_song)
+        return Response("Queued up a banger!")
+
+    async def cmd_addabanger(self, player, leftover_args):
+        """
+        Usage:
+            {command_prefix}AddABanger
+
+        Add a song to the collaborative play list.
+        """
+        if not self.config.collab_playlist_url:
+            return Response("No collaborative playlist defined!")
+        elif not leftover_args:
+            return Response("Usage: !AddABanger song_url")
+
+        song_url = leftover_args[0]
+        playlist_url = self.config.collab_playlist_url
+        if urlparse(playlist_url).scheme:
+            # It's a valid URL, connect remotely.
+            print("Url")
+        else:
+            # Access locally.
+            os.makedirs(os.path.dirname(playlist_url), exist_ok=True)
+            # Attempt atomic file operation using a temporary file and renaming that to the target file.
+            temp_file_name = playlist_url + ".tmp"
+            if os.path.exists(playlist_url):
+                # Skip if song is already in playlist.
+                with open(playlist_url, 'r') as playlist_file:
+                    for line in playlist_file.readlines():
+                        if song_url in line:
+                            return Response("Song already in playlist.", delete_after=20)
+                # Create temp copy.
+                os.rename(playlist_url, temp_file_name)
+
+            temp_file = open(temp_file_name, 'a+')
+            temp_file.write(song_url+"\n")
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+            temp_file.close()
+            # Rename
+            os.rename(temp_file_name, playlist_url)
+
+        return Response("Added song to collaborative playlist!", delete_after=10)
+
     async def on_message(self, message):
         await self.wait_until_ready()
 
@@ -2016,6 +2087,7 @@ class MusicBot(discord.Client):
             self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
+
 
 
 if __name__ == '__main__':

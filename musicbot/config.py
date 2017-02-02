@@ -83,6 +83,8 @@ class Config:
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
+        self.collab_playlist_url = config.get('CollabPlaylist', 'URL', fallback="")
+
         self.run_checks()
 
 
