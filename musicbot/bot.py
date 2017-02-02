@@ -711,6 +711,12 @@ class MusicBot(discord.Client):
 
             if owner_vc:
                 print("Done!", flush=True)  # TODO: Change this to "Joined server/channel"
+                if self.config.entry_song:
+                    player = await self.get_player(owner_vc, create=True)
+                    curr_vol = player.volume
+                    player.volume = 0.1
+                    await player.playlist.add_entry(self.config.entry_song)
+                    #player.volume = curr_vol
                 if self.config.auto_playlist:
                     print("Starting auto-playlist")
                     await self.on_player_finished_playing(await self.get_player(owner_vc))
