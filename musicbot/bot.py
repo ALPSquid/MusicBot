@@ -95,7 +95,12 @@ class MusicBot(discord.Client):
         self.server_specific_data = defaultdict(lambda: dict(ssd_defaults))
 
         super().__init__()
-        self.aiosession = aiohttp.ClientSession(loop=self.loop)
+        # Use proxy if it was given
+        if self.config.proxy:
+            print("Using proxy: ", self.config.proxy)
+            self.aiosession = aiohttp.ClientSession(loop=self.loop, connector=aiohttp.ProxyConnector(self.config.proxy))
+        else:
+            self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it

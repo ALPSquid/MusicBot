@@ -59,13 +59,14 @@ class Config:
         self._email = config.get('Credentials', 'Email', fallback=ConfigDefaults.email)
         self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
+        self.proxy = config.get('Credentials', 'Proxy', fallback=ConfigDefaults.proxy)
 
         self.auth = None
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
-        self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.autojoin_channels = config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.entry_song = config.get('MusicBot', 'EntrySong', fallback="")
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
@@ -83,8 +84,8 @@ class Config:
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
-        self.collab_playlist_url = config.get('CollabPlaylist', 'URL', fallback="")
-        self.collab_playlist_addurl = config.get('CollabPlaylist', 'AddURL', fallback="")
+        self.collab_playlist_url = config.get('CollabPlaylist', 'URL', fallback=ConfigDefaults.collab_playlist_url)
+        self.collab_playlist_addurl = config.get('CollabPlaylist', 'AddURL', fallback=ConfigDefaults.collab_playlist_addurl)
 
         self.run_checks()
 
@@ -175,6 +176,8 @@ class ConfigDefaults:
     password = None # This is not where you put your login info, go away.
     token = None    #
 
+    proxy = None
+
     owner_id = None
     command_prefix = '!'
     bound_channels = set()
@@ -191,6 +194,9 @@ class ConfigDefaults:
     delete_messages = True
     delete_invoking = False
     debug_mode = False
+
+    collab_playlist_url = 'collab_playlist/playlist.txt'
+    collab_playlist_addurl = None
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
