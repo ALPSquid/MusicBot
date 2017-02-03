@@ -1856,7 +1856,7 @@ class MusicBot(discord.Client):
 
         Play a random song from the collaborative play list.
         """
-        cmd_playabanger(player, channel, author, permissions, leftover_args)
+        return await self.cmd_playabanger(player, channel, author, permissions, leftover_args)
 
     async def cmd_addabanger(self, player, leftover_args):
         """
