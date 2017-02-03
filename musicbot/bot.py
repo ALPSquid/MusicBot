@@ -1825,7 +1825,7 @@ class MusicBot(discord.Client):
     async def cmd_playabanger(self, player, channel, author, permissions, leftover_args):
         """
         Usage:
-            {command_prefix}PlayABanger
+            {command_prefix}PlayABanger [url]
 
         Play a random song from the collaborative play list.
         """
@@ -1839,7 +1839,8 @@ class MusicBot(discord.Client):
                 playlist_file = open(playlist_url, 'r')
                 songs = playlist_file.readlines()
                 playlist_file.close()
-                selected_song = random.choice(songs)
+                songs = list(filter(None, songs))
+                selected_song = random.choice(songs).strip("\n")
             else:
                 return Response("Playlist is empty :( Add songs with !AddABanger song_url")
 
@@ -1848,10 +1849,19 @@ class MusicBot(discord.Client):
         await self.cmd_play(player, channel, author, permissions, leftover_args, selected_song)
         return Response("Queued up a banger!")
 
+    async def cmd_putabangeron(self, player, channel, author, permissions, leftover_args):
+        """
+        Usage:
+            {command_prefix}PutABangerOn [url]
+
+        Play a random song from the collaborative play list.
+        """
+        cmd_playabanger(player, channel, author, permissions, leftover_args)
+
     async def cmd_addabanger(self, player, leftover_args):
         """
         Usage:
-            {command_prefix}AddABanger
+            {command_prefix}AddABanger [url]
 
         Add a song to the collaborative play list.
         """
@@ -1861,6 +1871,9 @@ class MusicBot(discord.Client):
             return Response("Usage: !AddABanger song_url")
 
         song_url = leftover_args[0]
+        if not urlparse(song_url).scheme:
+            return Response("Not a valid URL. Usage: !AddABanger song_url", delete_after=30)
+
         playlist_url = self.config.collab_playlist_url
         if urlparse(playlist_url).scheme:
             # It's a valid URL, connect remotely.

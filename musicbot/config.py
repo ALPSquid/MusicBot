@@ -84,6 +84,7 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
         self.collab_playlist_url = config.get('CollabPlaylist', 'URL', fallback="")
+        self.collab_playlist_addurl = config.get('CollabPlaylist', 'AddURL', fallback="")
 
         self.run_checks()
 
