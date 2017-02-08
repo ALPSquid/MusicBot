@@ -1897,8 +1897,16 @@ class MusicBot(discord.Client):
                 # Create temp copy.
                 os.rename(playlist_url, temp_file_name)
 
+            # Get song title
+            song_entry = song_url
+            try:
+                info = await self.downloader.extract_info(self.loop, song_url, download=False)
+                song_entry += "," + info.get('title', 'Untitled')
+            except Exception as e:
+                raise exceptions.ExtractionError('Could not extract information from {}\n\n{}'.format(song_url, e))
+
             temp_file = open(temp_file_name, 'a+')
-            temp_file.write(song_url+"\n")
+            temp_file.write(song_entry+"\n")
             temp_file.flush()
             os.fsync(temp_file.fileno())
             temp_file.close()
@@ -1906,6 +1914,78 @@ class MusicBot(discord.Client):
             os.rename(temp_file_name, playlist_url)
 
         return Response("Added song to collaborative playlist!", delete_after=10)
+
+    async def cmd_listbangers(self):
+        """
+        List the collaborative playlist.
+        """
+        if not self.config.collab_playlist_url:
+            return Response("No collaborative playlist defined!")
+
+        playlist_url = self.config.collab_playlist_url
+        if urlparse(playlist_url).scheme:
+            # It's a valid URL, connect remotely.
+            print("Url")
+        else:
+            # Access locally.
+            if os.path.exists(playlist_url):
+                playlist_file = open(playlist_url, 'r')
+                songs = playlist_file.readlines()
+                playlist_file.close()
+                songs = list(filter(None, songs))
+                # Process songs
+                reply_text = ""
+                file_updated = False  # Whether the file needs updating to add missing song titles.
+                for index, song in enumerate(songs):
+                    song = song.replace("\n", "")
+                    # Add song name if it hasn't been already.
+                    if "," not in song:
+                        try:
+                            info = await self.downloader.extract_info(self.loop, song, download=False)
+                        except Exception as e:
+                            raise exceptions.ExtractionError('Could not extract information from {}\n\n{}'.format(song, e))
+                        songs[index] = song + "," + info.get('title', 'Untitled')
+                        file_updated = True
+                    song_url, song_title = songs[index].split(",")
+                    reply_text += "**{0}**. {1}\n".format(index+1, song_title)
+
+                # Add missing song names to playlist file.
+                if file_updated:
+                    with open(playlist_url, 'w') as playlist_file:
+                        playlist_file.writelines(songs)
+
+                return Response(reply_text, delete_after=60)
+            else:
+                return Response("Playlist is empty :( Add songs with !AddABanger song_url")
+
+    async def cmd_removebanger(self, message):
+        """
+        Usage:
+            {command_prefix}RemoveBanger [number]
+
+        Remove a banger from the collaborative playlist. Use {command_prefix}ListBangers to get the number.
+        """
+        number = message.content.split(" ")
+        if len(number) <= 1:
+            return Response("Usage: !RemoveBanger [number]. Use Use {command_prefix}ListBangers to get the number.")
+        number = number[1]
+        index = int(number) - 1
+        playlist_url = self.config.collab_playlist_url
+        if os.path.exists(playlist_url):
+            playlist_file = open(playlist_url, 'r')
+            songs = playlist_file.readlines()
+            playlist_file.close()
+            # Get the song title for the response.
+            song_title = songs[index].split(",")[1].replace("\n", "")
+            # Remove the specified index.
+            del songs[index]
+            # Write changes.
+            with open(playlist_url, 'w') as playlist_file:
+                playlist_file.writelines(songs)
+
+            return Response("Removed **{0}** from the playlist.".format(song_title), delete_after=30)
+
+        return Response("Playlist is empty :( Add songs with !AddABanger song_url")
 
     async def on_message(self, message):
         await self.wait_until_ready()

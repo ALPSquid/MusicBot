@@ -10,3 +10,5 @@ config/options.ini
 config/permissions.ini
 
 collab_playlist/
+
+AWS_clear_cache\.txt
