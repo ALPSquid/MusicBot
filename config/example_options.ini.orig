@@ -109,9 +109,17 @@ CommandPrefix = !
 
 
 [MusicBot]
+<<<<<<< HEAD
+; Song to play when the bot joins the server.
+EntrySong = https://www.youtube.com/watch?v=ecc0nbg9m-8
+
+; The starting volume of the bot.  You can use any value from 0.01 to 1.0 but 0.15 is probably fine
+DefaultVolume = 0.15
+=======
 ; The starting volume of the bot.  You can use any value from 0.01 to 1.0
 ; 1.0 means unaltered, 0.25 is 25%, etc
 DefaultVolume = 0.25
+>>>>>>> 7c617ec1d7d54202fcd94a190ca621408fba31f6
 
 ; Only allow whitelisted users to use commands.
 ; Deprecated in favor of permissions.
@@ -150,6 +158,17 @@ DeleteMessages = yes
 ; permission in the channel to delete messages from other users.
 DeleteInvoking = no
 
+<<<<<<< HEAD
+; Prints extra output in the console and some errors to chat.
+; This option is a work in progress, don't expect much.  You might as well just leave it on for now.
+DebugMode = no
+
+[CollabPlaylist]
+; Location of the playlist. If using an online playlist, make sure it's a valid URL and prefixed with "http://". This will only be used fot getting a remote playist!
+URL = collab_playlist/playlist.txt
+; [Optional] URL for adding a new song to a remote playlist. %url% will be replaced with the song url.
+AddURL = http://example.com/playlist?url=%url%
+=======
 ; Save the queue to the disk and update it as it changes.  When the bot shuts
 ; down (for whatever reason), it will reload and resume the queue it had from
 ; when it was last running.
@@ -164,3 +183,4 @@ PersistentQueue = yes
 ; verbose than DEBUG, and should probably only be used for debugging:
 ; 	VOICEDEBUG, FFMPEG, NOISY, EVERYTHING
 DebugLevel = INFO
+>>>>>>> 7c617ec1d7d54202fcd94a190ca621408fba31f6

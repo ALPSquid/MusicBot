@@ -266,6 +266,15 @@ class Config:
 
 
 class ConfigDefaults:
+<<<<<<< HEAD
+    email = None    #
+    password = None # This is not where you put your login info, go away.
+    token = None    #
+
+    proxy = None
+
+=======
+>>>>>>> 7c617ec1d7d54202fcd94a190ca621408fba31f6
     owner_id = None
     dev_ids = set()
 

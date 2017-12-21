@@ -1127,9 +1127,7 @@ class MusicBot(discord.Client):
 
         await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
-        if self.config.autojoin_channels:
-            await self._autojoin_channels(autojoin_channels)
-
+<<<<<<< HEAD
         elif self.config.auto_summon:
             print("Attempting to autosummon...", flush=True)
 
@@ -1152,6 +1150,8 @@ class MusicBot(discord.Client):
                 print("Owner not found in a voice channel, could not autosummon.")
 
         print()
+=======
+>>>>>>> 7c617ec1d7d54202fcd94a190ca621408fba31f6
         # t-t-th-th-that's all folks!
 
     async def cmd_help(self, command=None):
@@ -2781,6 +2781,12 @@ class MusicBot(discord.Client):
             await self.reconnect_voice_client(after)
 
 
+<<<<<<< HEAD
+
+if __name__ == '__main__':
+    bot = MusicBot()
+    bot.run()
+=======
     async def on_server_join(self, server:discord.Server):
         log.info("Bot has been joined server: {}".format(server.name))
 
@@ -2833,3 +2839,4 @@ class MusicBot(discord.Client):
             log.debug("Pausing player in \"{}\" due to unavailability.".format(server.name))
             self.server_specific_data[server]['availability_paused'] = True
             player.pause()
+>>>>>>> 7c617ec1d7d54202fcd94a190ca621408fba31f6
