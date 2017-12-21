@@ -1952,7 +1952,7 @@ class MusicBot(discord.Client):
                 # Add missing song names to playlist file.
                 if file_updated:
                     with open(playlist_url, 'w') as playlist_file:
-                        playlist_file.writelines(songs)
+                        playlist_file.writelines(songs + "\n")
 
                 return Response(reply_text, delete_after=60)
             else:
