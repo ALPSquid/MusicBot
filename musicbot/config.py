@@ -36,7 +36,7 @@ class Config:
         self._email = config.get('Credentials', 'Email', fallback=ConfigDefaults.email)
         self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
-        self.proxy = config.get('Credentials', 'Proxy', fallback=ConfigDefaults.proxy)
+        #self.proxy = config.get('Credentials', 'Proxy', fallback=ConfigDefaults.proxy)
 
         self.auth = ()
 

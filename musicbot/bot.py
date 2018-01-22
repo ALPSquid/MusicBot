@@ -103,11 +103,11 @@ class MusicBot(discord.Client):
 
         super().__init__()
         # Use proxy if it was given
-        if self.config.proxy:
-            print("Using proxy: ", self.config.proxy)
-            self.aiosession = aiohttp.ClientSession(loop=self.loop, connector=aiohttp.ProxyConnector(self.config.proxy))
-        else:
-            self.aiosession = aiohttp.ClientSession(loop=self.loop)
+        #if self.config.proxy:
+        #    print("Using proxy: ", self.config.proxy)
+        #    self.aiosession = aiohttp.ClientSession(loop=self.loop, connector=aiohttp.ProxyConnector(self.config.proxy))
+        #else:
+        self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
@@ -1126,9 +1126,9 @@ class MusicBot(discord.Client):
         # wait_for_message is pretty neato
 
         await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
-
+        """
         if self.config.autojoin_channels:
-            await self._autojoin_channels(autojoin_channels)
+           await self._autojoin_channels(autojoin_channels)
 
         elif self.config.auto_summon:
             print("Attempting to autosummon...", flush=True)
@@ -1150,7 +1150,7 @@ class MusicBot(discord.Client):
                     await self.on_player_finished_playing(await self.get_player(owner_vc))
             else:
                 print("Owner not found in a voice channel, could not autosummon.")
-
+        """
         print()
         # t-t-th-th-that's all folks!
 
