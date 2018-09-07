@@ -18,3 +18,5 @@ AWS_clear_cache\.txt
 
 config/autoplaylist.txt
 config/autoplaylist_removed.txt
+config/whitelist.txt
+config/blacklist.txt
