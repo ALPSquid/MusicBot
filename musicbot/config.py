@@ -81,7 +81,7 @@ class Config:
         self.auto_playlist_removed_file = None
 
         self.collab_playlist_url = config.get('CollabPlaylist', 'URL', fallback=ConfigDefaults.collab_playlist_url)
-        self.collab_playlist_addurl = config.get('CollabPlaylist', 'AddURL', fallback=ConfigDefaults.collab_playlist_addurl)
+        self.collab_playlist_lists = config.get('CollabPlaylist', 'Lists', fallback=ConfigDefaults.collab_playlist_lists).split(",")
 
         self.run_checks()
 
@@ -342,7 +342,7 @@ class ConfigDefaults:
     legacy_skip = False
 
     collab_playlist_url = 'collab_playlist/playlist.txt'
-    collab_playlist_addurl = None
+    collab_playlist_lists = []
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'

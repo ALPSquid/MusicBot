@@ -25,6 +25,7 @@ from collections import defaultdict
 
 from discord.enums import ChannelType
 
+from musicbot.modules.CollabPlaylists import CollabPlaylists
 from . import exceptions
 from . import downloader
 
@@ -323,6 +324,7 @@ class MusicBot(discord.Client):
             await self.safe_delete_message(message, quiet=quiet)
 
     async def _check_ignore_non_voice(self, msg):
+        if
         vc = msg.guild.me.voice.channel
 
         # If we've connected to a voice chat and we're in the same voice channel
@@ -1259,6 +1261,7 @@ class MusicBot(discord.Client):
             {command_prefix}play song_link
             {command_prefix}play text to search for
             {command_prefix}play spotify_uri
+            {command_prefix}play playlist_name
 
         Adds the song to the playlist.  If a link is not provided, the first
         result from a youtube search is added to the queue.
@@ -1275,6 +1278,19 @@ class MusicBot(discord.Client):
         if leftover_args:
             song_url = ' '.join([song_url, *leftover_args])
         leftover_args = None  # prevent some crazy shit happening down the line
+
+        #### - Collab Playlists
+        # The playlist is the first arg (song_url)
+        if song_url in self.config.collab_playlist_lists:
+            random_song = CollabPlaylists.get_track(self, song_url)
+
+            if type(random_song) is Response:
+                return random_song
+
+            # If there was one, use it, otherwise search normally.
+            if random_song is not None:
+                song_url = random_song
+        ######
 
         # Make sure forward slashes work properly in search queries
         linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
@@ -2599,129 +2615,57 @@ class MusicBot(discord.Client):
         """
         return await self.cmd_playabanger(player, channel, author, permissions, leftover_args)
 
-    async def cmd_addabanger(self, player, leftover_args):
+    async def cmd_addtune(self, player, leftover_args):
         """
         Usage:
-            {command_prefix}AddABanger [url]
+            {command_prefix}AddTune [playlist_name] [url]
 
-        Add a song to the collaborative play list.
+        Add a song to a collaborative play list.
         """
         if not self.config.collab_playlist_url:
             return Response("No collaborative playlist defined!")
-        elif not leftover_args:
-            return Response("Usage: !AddABanger song_url")
+        elif not leftover_args or len(leftover_args) < 2:
+            return Response("Usage: !Add playlist_name song_url")
 
-        song_url = leftover_args[0]
+        playlist = leftover_args[0]
+        song_url = leftover_args[1]
         if not urlparse(song_url).scheme:
-            return Response("Not a valid URL. Usage: !AddABanger song_url", delete_after=30)
+            return Response("Not a valid URL. Usage: !AddTune playlist_name song_url", delete_after=30)
 
-        playlist_url = self.config.collab_playlist_url
-        if urlparse(playlist_url).scheme:
-            # It's a valid URL, connect remotely.
-            print("Url")
-        else:
-            # Access locally.
-            os.makedirs(os.path.dirname(playlist_url), exist_ok=True)
-            # Attempt atomic file operation using a temporary file and renaming that to the target file.
-            temp_file_name = playlist_url + ".tmp"
-            if os.path.exists(playlist_url):
-                # Skip if song is already in playlist.
-                with open(playlist_url, 'r') as playlist_file:
-                    for line in playlist_file.readlines():
-                        if song_url in line:
-                            return Response("Song already in playlist.", delete_after=20)
-                # Create temp copy.
-                os.rename(playlist_url, temp_file_name)
+        return await CollabPlaylists.add_track(self, playlist, song_url)
 
-            # Get song title
-            song_entry = song_url
-            try:
-                info = await self.downloader.extract_info(self.loop, song_url, download=False)
-                song_entry += "," + info.get('title', 'Untitled')
-            except Exception as e:
-                raise exceptions.ExtractionError('Could not extract information from {}\n\n{}'.format(song_url, e))
-
-            temp_file = open(temp_file_name, 'a+')
-            temp_file.write(song_entry+"\n")
-            temp_file.flush()
-            os.fsync(temp_file.fileno())
-            temp_file.close()
-            # Rename
-            os.rename(temp_file_name, playlist_url)
-
-        return Response("Added song to collaborative playlist!", delete_after=10)
-
-    async def cmd_listbangers(self):
-        """
-        List the collaborative playlist.
-        """
-        if not self.config.collab_playlist_url:
-            return Response("No collaborative playlist defined!")
-
-        playlist_url = self.config.collab_playlist_url
-        if urlparse(playlist_url).scheme:
-            # It's a valid URL, connect remotely.
-            print("Url")
-        else:
-            # Access locally.
-            if os.path.exists(playlist_url):
-                playlist_file = open(playlist_url, 'r')
-                songs = playlist_file.readlines()
-                playlist_file.close()
-                songs = list(filter(None, songs))
-                # Process songs
-                reply_text = ""
-                file_updated = False  # Whether the file needs updating to add missing song titles.
-                for index, song in enumerate(songs):
-                    song = song.replace("\n", "")
-                    # Add song name if it hasn't been already.
-                    if "," not in song:
-                        try:
-                            info = await self.downloader.extract_info(self.loop, song, download=False)
-                        except Exception as e:
-                            raise exceptions.ExtractionError('Could not extract information from {}\n\n{}'.format(song, e))
-                        songs[index] = song + "," + info.get('title', 'Untitled')
-                        file_updated = True
-                    song_url, song_title = songs[index].split(",")
-                    reply_text += "**{0}**. {1}\n".format(index+1, song_title)
-
-                # Add missing song names to playlist file.
-                if file_updated:
-                    with open(playlist_url, 'w') as playlist_file:
-                        playlist_file.writelines(songs + "\n")
-
-                return Response(reply_text, delete_after=60)
-            else:
-                return Response("Playlist is empty :( Add songs with !AddABanger song_url")
-
-    async def cmd_removebanger(self, message):
+    async def cmd_listtunes(self, player, leftover_args):
         """
         Usage:
-            {command_prefix}RemoveBanger [number]
+            {command_prefix}ListTunes [playlist_name]
+            or
+            {command_prefix}ListTunes
 
-        Remove a banger from the collaborative playlist. Use {command_prefix}ListBangers to get the number.
+        List tunes in a playlist, or list playlists.
         """
-        number = message.content.split(" ")
-        if len(number) <= 1:
-            return Response("Usage: !RemoveBanger [number]. Use Use {command_prefix}ListBangers to get the number.")
-        number = number[1]
+        if not self.config.collab_playlist_url:
+            return Response("No collaborative playlists defined!")
+
+        if not leftover_args or leftover_args[0] == "":
+            return CollabPlaylists.list_playlists(self)
+
+        return await CollabPlaylists.list_playlist(self, leftover_args[0])
+
+    async def cmd_removetune(self, player, leftover_args):
+        """
+        Usage:
+            {command_prefix}RemoveTune [playlist_name] [number]
+
+        Remove a banger from the collaborative playlist. Use {command_prefix}ListTunes [playlist_name] to get the number.
+        """
+        playlist = leftover_args[0]
+        number = leftover_args[1]
+
+        if not leftover_args or len(leftover_args) < 2:
+            return Response("Usage: !RemoveTune [number]. Use Use {command_prefix}ListBangers to get the number.")
+
         index = int(number) - 1
-        playlist_url = self.config.collab_playlist_url
-        if os.path.exists(playlist_url):
-            playlist_file = open(playlist_url, 'r')
-            songs = playlist_file.readlines()
-            playlist_file.close()
-            # Get the song title for the response.
-            song_title = songs[index].split(",")[1].replace("\n", "")
-            # Remove the specified index.
-            del songs[index]
-            # Write changes.
-            with open(playlist_url, 'w') as playlist_file:
-                playlist_file.writelines(songs)
-
-            return Response("Removed **{0}** from the playlist.".format(song_title), delete_after=30)
-
-        return Response("Playlist is empty :( Add songs with !AddABanger song_url")
+        return CollabPlaylists.remove_track(self, playlist, index)
 
     async def on_message(self, message):
         await self.wait_until_ready()
