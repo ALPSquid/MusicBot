@@ -34,7 +34,6 @@ class Config:
         self._confpreface2 = "An error has occured validating the config:\n"
 
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
-        #self.proxy = config.get('Credentials', 'Proxy', fallback=ConfigDefaults.proxy)
 
         self.auth = ()
 
@@ -46,7 +45,8 @@ class Config:
 
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
-        self.autojoin_channels = config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.unbound_servers = config.getboolean('Chat', 'AllowUnboundServers', fallback=ConfigDefaults.unbound_servers)
+        self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.entry_song = config.get('MusicBot', 'EntrySong', fallback="")
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
@@ -70,6 +70,7 @@ class Config:
         self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
         self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
+        self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -152,6 +153,7 @@ class Config:
                         "instructions in the options or ask in the help server.",
                         preface=self._confpreface
                     )
+                self.owner_id = int(self.owner_id)
 
             elif self.owner_id == 'auto':
                 pass # defer to async check
@@ -168,14 +170,14 @@ class Config:
 
         if self.bound_channels:
             try:
-                self.bound_channels = set(x for x in self.bound_channels.split() if x)
+                self.bound_channels = set(x for x in self.bound_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("BindToChannels data is invalid, will not bind to any channels")
                 self.bound_channels = set()
 
         if self.autojoin_channels:
             try:
-                self.autojoin_channels = set(x for x in self.autojoin_channels.split() if x)
+                self.autojoin_channels = set(x for x in self.autojoin_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
@@ -186,9 +188,9 @@ class Config:
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
-        self.bound_channels = set(int(item.replace(',', ' ').strip()) for item in self.bound_channels)
+        self.bound_channels = set(int(item) for item in self.bound_channels)
 
-        self.autojoin_channels = set(int(item.replace(',', ' ').strip()) for item in self.autojoin_channels)
+        self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
 
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
@@ -230,8 +232,6 @@ class Config:
 
             self.owner_id = bot.cached_app_info.owner.id
             log.debug("Acquired owner id via API")
-        else:
-            self.owner_id = int(self.owner_id)
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(
@@ -316,6 +316,7 @@ class ConfigDefaults:
 
     command_prefix = '!'
     bound_channels = set()
+    unbound_servers = False
     autojoin_channels = set()
 
     default_volume = 0.15
@@ -340,6 +341,7 @@ class ConfigDefaults:
     remove_ap = True
     show_config_at_start = False
     legacy_skip = False
+    leavenonowners = False
 
     collab_playlist_url = 'collab_playlist/playlist.txt'
     collab_playlist_lists = []
