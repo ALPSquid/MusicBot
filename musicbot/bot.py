@@ -25,7 +25,8 @@ from collections import defaultdict
 
 from discord.enums import ChannelType
 
-from musicbot.modules.CollabPlaylists import CollabPlaylists
+from musicbot.modules import *
+
 from . import exceptions
 from . import downloader
 
