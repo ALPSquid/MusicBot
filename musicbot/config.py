@@ -54,6 +54,7 @@ class Config:
         self.nowplaying_channels =  config.get('Chat', 'NowPlayingChannels', fallback=ConfigDefaults.nowplaying_channels)
         self.delete_nowplaying = config.getboolean('Chat', 'DeleteNowPlaying', fallback=ConfigDefaults.delete_nowplaying)
 
+        self.entry_song = config.get('MusicBot', 'EntrySong', fallback="")
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
         self.skip_ratio_required = config.getfloat('MusicBot', 'SkipRatio', fallback=ConfigDefaults.skip_ratio_required)
@@ -87,6 +88,9 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
+
+        self.collab_playlist_url = config.get('CollabPlaylist', 'URL', fallback=ConfigDefaults.collab_playlist_url)
+        self.collab_playlist_lists = config.get('CollabPlaylist', 'Lists', fallback=ConfigDefaults.collab_playlist_lists).split(",")
 
         self.run_checks()
 
@@ -366,6 +370,9 @@ class ConfigDefaults:
     leavenonowners = False
     usealias = True
     footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
+
+    collab_playlist_url = 'collab_playlist/playlist.txt'
+    collab_playlist_lists = []
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'

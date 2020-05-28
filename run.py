@@ -341,7 +341,7 @@ def pyexec(pycom, *args, pycom2=None):
     os.execlp(pycom, pycom2, *args)
 
 
-def main():
+def main(options_file=None):
     # TODO: *actual* argparsing
 
     if '--no-checks' not in sys.argv:
@@ -368,7 +368,7 @@ def main():
         m = None
         try:
             from musicbot import MusicBot
-            m = MusicBot()
+            m = MusicBot(config_file=options_file)
 
             sh.terminator = ''
             sh.terminator = '\n'
@@ -438,4 +438,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    options_file = None
+    if (len(sys.argv) > 1):
+        options_file = sys.argv[1]
+
+    main(options_file)
