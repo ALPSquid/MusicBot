@@ -17,7 +17,7 @@ config/autoplaylist_removed.txt
 config/whitelist.txt
 config/blacklist.txt
 
-collab_playlist/
+collab_playlists/
 
 AWS_clear_cache\.txt
 
