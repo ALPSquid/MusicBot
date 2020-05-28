@@ -2703,7 +2703,7 @@ class MusicBot(discord.Client):
         index = int(number) - 1
         return CollabPlaylists.remove_track(self, playlist, index)
 
-    async def cmd_listsongs(self, player, leftover_args):
+    async def cmd_listsongs(self, player, channel, leftover_args):
         """
         Usage:
             {command_prefix}ListSongs [playlist_name]
@@ -2718,7 +2718,7 @@ class MusicBot(discord.Client):
         if not leftover_args or leftover_args[0] == "":
             return CollabPlaylists.list_playlists(self)
 
-        return await CollabPlaylists.list_playlist(self, leftover_args[0])
+        return await CollabPlaylists.list_playlist(self, channel, leftover_args[0])
 
     async def cmd_listplaylists(self, player, leftover_args):
         """

@@ -2,7 +2,10 @@ import os
 import asyncio
 import random
 
+from discord import Embed
+
 from musicbot import exceptions
+from musicbot.constants import DISCORD_MSG_CHAR_LIMIT
 from musicbot.constructs import Response
 
 
@@ -89,7 +92,7 @@ class CollabPlaylists:
         return Response(reply_text, delete_after=60)
 
     @staticmethod
-    async def list_playlist(music_bot, playlist_name):
+    async def list_playlist(music_bot, channel, playlist_name):
         playlist_url = CollabPlaylists.get_playlist_file(music_bot, playlist_name)
         if type(playlist_url) is Response:
             return playlist_url
@@ -112,14 +115,24 @@ class CollabPlaylists:
                 songs[index] = song + "," + info.get('title', 'Untitled')
                 file_updated = True
             song_url, song_title = songs[index].split(",")
-            reply_text += "**{0}**. {1}\n".format(index+1, song_title)
+            song_text = "**{0}**. {1}\n".format(index+1, song_title)
+            if len(reply_text) + len(song_text) >= DISCORD_MSG_CHAR_LIMIT:
+                content = music_bot._gen_embed()
+                content.title = playlist_name
+                content.description = reply_text
+                await music_bot.safe_send_message(channel, content, expire_in=120)
+                reply_text = ""
+            reply_text += song_text
 
         # Add missing song names to playlist file.
         if file_updated:
             with open(playlist_url, 'w') as playlist_file:
                 playlist_file.writelines(songs + "\n")
 
-        return Response(reply_text, delete_after=60)
+        content = music_bot._gen_embed()
+        content.title = playlist_name
+        content.description = reply_text
+        return Response(content, delete_after=120)
 
     @staticmethod
     def get_track(music_bot, playlist_name):
