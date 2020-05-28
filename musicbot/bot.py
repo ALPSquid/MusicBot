@@ -2667,48 +2667,13 @@ class MusicBot(discord.Client):
 
         return Response(codeblock.format(result))
 
-    async def cmd_playabanger(self, player, channel, author, permissions, leftover_args):
+#region Collaborative Playlists
+    async def cmd_addsong(self, player, leftover_args):
         """
         Usage:
-            {command_prefix}PlayABanger [url]
+            {command_prefix}AddSong [playlist_name] [url]
 
-        Play a random song from the collaborative play list.
-        """
-        selected_song = ""
-        playlist_url = self.config.collab_playlist_url
-        if urlparse(playlist_url).scheme:
-            # It's a valid URL, connect remotely.
-            print("Url")
-        else:
-            if os.path.exists(playlist_url):
-                playlist_file = open(playlist_url, 'r')
-                songs = playlist_file.readlines()
-                playlist_file.close()
-                songs = list(filter(None, songs))
-                selected_song = random.choice(songs).strip("\n")
-            else:
-                return Response("Playlist is empty :( Add songs with !AddABanger song_url")
-
-        if not selected_song:
-            return Response("Invalid song found. Check the playlist file!")
-        await self.cmd_play(player, channel, author, permissions, leftover_args, selected_song)
-        return Response("Queued up a banger!")
-
-    async def cmd_putabangeron(self, player, channel, author, permissions, leftover_args):
-        """
-        Usage:
-            {command_prefix}PutABangerOn [url]
-
-        Play a random song from the collaborative play list.
-        """
-        return await self.cmd_playabanger(player, channel, author, permissions, leftover_args)
-
-    async def cmd_addtune(self, player, leftover_args):
-        """
-        Usage:
-            {command_prefix}AddTune [playlist_name] [url]
-
-        Add a song to a collaborative play list.
+        Add a song to a collaborative play list. Use {command_prefix}ListSongs to show available playlists.
         """
         if not self.config.collab_playlist_url:
             return Response("No collaborative playlist defined!")
@@ -2722,29 +2687,12 @@ class MusicBot(discord.Client):
 
         return await CollabPlaylists.add_track(self, playlist, song_url)
 
-    async def cmd_listtunes(self, player, leftover_args):
+    async def cmd_removesong(self, player, leftover_args):
         """
         Usage:
-            {command_prefix}ListTunes [playlist_name]
-            or
-            {command_prefix}ListTunes
+            {command_prefix}RemoveSong [playlist_name] [number]
 
-        List tunes in a playlist, or list playlists.
-        """
-        if not self.config.collab_playlist_url:
-            return Response("No collaborative playlists defined!")
-
-        if not leftover_args or leftover_args[0] == "":
-            return CollabPlaylists.list_playlists(self)
-
-        return await CollabPlaylists.list_playlist(self, leftover_args[0])
-
-    async def cmd_removetune(self, player, leftover_args):
-        """
-        Usage:
-            {command_prefix}RemoveTune [playlist_name] [number]
-
-        Remove a banger from the collaborative playlist. Use {command_prefix}ListTunes [playlist_name] to get the number.
+        Remove a song from a collaborative playlist. Use {command_prefix}ListSongs [playlist_name] to get the number.
         """
         playlist = leftover_args[0]
         number = leftover_args[1]
@@ -2754,6 +2702,34 @@ class MusicBot(discord.Client):
 
         index = int(number) - 1
         return CollabPlaylists.remove_track(self, playlist, index)
+
+    async def cmd_listsongs(self, player, leftover_args):
+        """
+        Usage:
+            {command_prefix}ListSongs [playlist_name]
+            or
+            {command_prefix}ListSongs
+
+        List songs in a playlist, or list playlists.
+        """
+        if not self.config.collab_playlist_url:
+            return Response("No collaborative playlists defined!")
+
+        if not leftover_args or leftover_args[0] == "":
+            return CollabPlaylists.list_playlists(self)
+
+        return await CollabPlaylists.list_playlist(self, leftover_args[0])
+
+    async def cmd_listplaylists(self, player, leftover_args):
+        """
+        Usage:
+            {command_prefix}ListPlaylists
+
+        List names of available playlists.
+        """
+        return await cmd_listsongs(self, player, leftover_args)
+#endregion
+
 
     async def on_message(self, message):
         await self.wait_until_ready()
