@@ -1,7 +1,7 @@
 import sys
-import decimal
 import logging
 import aiohttp
+import inspect
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
@@ -32,11 +32,6 @@ def write_file(filename, contents):
             f.write(str(item))
             f.write('\n')
 
-
-def sane_round_int(x):
-    return int(decimal.Decimal(x).quantize(1, rounding=decimal.ROUND_HALF_UP))
-
-
 def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
     Split up a large string or list of strings into chunks for sending to discord.
@@ -65,12 +60,12 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
 
 
 async def get_header(session, url, headerfield=None, *, timeout=5):
-    with aiohttp.Timeout(timeout):
-        async with session.head(url) as response:
-            if headerfield:
-                return response.headers.get(headerfield)
-            else:
-                return response.headers
+    req_timeout = aiohttp.ClientTimeout(total = timeout)
+    async with session.head(url, timeout = req_timeout) as response:
+        if headerfield:
+            return response.headers.get(headerfield)
+        else:
+            return response.headers
 
 
 def md5sum(filename, limit=0):
@@ -80,14 +75,13 @@ def md5sum(filename, limit=0):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
 
-
 def fixg(x, dp=2):
     return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
 
 
 def ftimedelta(td):
     p1, p2 = str(td).rsplit(':', 1)
-    return ':'.join([p1, str(int(float(p2)))])
+    return ':'.join([p1, '{:02d}'.format(int(float(p2)))])
 
 
 def safe_print(content, *, end='\n', flush=True):
@@ -153,3 +147,21 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
 
 def color_supported():
     return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+
+def _func_():
+    # emulate __func__ from C++
+    return inspect.currentframe().f_back.f_code.co_name
+
+def _get_variable(name):
+    stack = inspect.stack()
+    try:
+        for frames in stack:
+            try:
+                frame = frames[0]
+                current_locals = frame.f_locals
+                if name in current_locals:
+                    return current_locals[name]
+            finally:
+                del frame
+    finally:
+        del stack

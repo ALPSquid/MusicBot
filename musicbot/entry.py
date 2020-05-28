@@ -2,11 +2,19 @@ import os
 import asyncio
 import logging
 import traceback
+import re
+import sys
 
 from enum import Enum
 from .constructs import Serializable
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
+
+# optionally using pymediainfo instead of ffprobe if presents
+try:
+    import pymediainfo
+except:
+    pymediainfo = None
 
 log = logging.getLogger(__name__)
 
@@ -48,9 +56,10 @@ class BasePlaylistEntry(Serializable):
 
         else:
             # If we request a ready future, let's ensure that it'll actually resolve at one point.
-            asyncio.ensure_future(self._download())
             self._waiting_futures.append(future)
+            asyncio.ensure_future(self._download())
 
+        log.debug('Created future for {0}'.format(self.filename))
         return future
 
     def _for_each_future(self, cb):
@@ -78,15 +87,21 @@ class BasePlaylistEntry(Serializable):
 
 
 class URLPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, duration=0, expected_filename=None, **meta):
+    def __init__(self, playlist, url, title, duration=None, expected_filename=None, **meta):
         super().__init__()
 
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
+        if duration == None: # duration could be 0
+            log.info('Cannot extract duration of the entry. This does not affect the ability of the bot. '
+                     'However, estimated time for this entry will not be unavailable and estimated time '
+                     'of the queue will also not be available until this entry got downloaded.\n'
+                     'entry name: {}'.format(self.title))
         self.expected_filename = expected_filename
         self.meta = meta
+        self.aoptions = '-vn'
 
         self.download_folder = self.playlist.downloader.download_folder
 
@@ -106,7 +121,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     'id': obj.id,
                     'name': obj.name
                 } for name, obj in self.meta.items() if obj
-            }
+            },
+            'aoptions': self.aoptions
         })
 
     @classmethod
@@ -118,17 +134,24 @@ class URLPlaylistEntry(BasePlaylistEntry):
             url = data['url']
             title = data['title']
             duration = data['duration']
-            downloaded = data['downloaded']
+            downloaded = data['downloaded'] if playlist.bot.config.save_videos else False
             filename = data['filename'] if downloaded else None
             expected_filename = data['expected_filename']
             meta = {}
 
             # TODO: Better [name] fallbacks
             if 'channel' in data['meta']:
-                meta['channel'] = playlist.bot.get_channel(data['meta']['channel']['id'])
-
-            if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                # int() it because persistent queue from pre-rewrite days saved ids as strings
+                meta['channel'] = playlist.bot.get_channel(int(data['meta']['channel']['id']))
+                if not meta['channel']:
+                    log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel']['id']))
+                    meta.pop('channel')
+                elif 'author' in data['meta']:
+                    # int() it because persistent queue from pre-rewrite days saved ids as strings
+                    meta['author'] = meta['channel'].guild.get_member(int(data['meta']['author']['id']))
+                    if not meta['author']:
+                        log.warning('Cannot find author in an entry loaded from persistent queue. Author id: {}'.format(data['meta']['author']['id']))
+                        meta.pop('author')
 
             entry = cls(playlist, url, title, duration, expected_filename, **meta)
             entry.filename = filename
@@ -204,6 +227,53 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 else:
                     await self._really_download()
 
+            if self.duration == None:
+                if pymediainfo:
+                    try:
+                        mediainfo = pymediainfo.MediaInfo.parse(self.filename)
+                        self.duration = (mediainfo.tracks[0].duration)/1000
+                    except:
+                        self.duration = None
+
+                else:
+                    args = [
+                        'ffprobe', 
+                        '-i', self.filename, 
+                        '-show_entries', 'format=duration', 
+                        '-v', 'quiet', 
+                        '-of', 'csv="p=0"'
+                    ]
+
+                    output = await self.run_command(' '.join(args))
+                    output = output.decode("utf-8")
+
+                    try:
+                        self.duration = float(output)
+                    except ValueError:
+                        # @TheerapakG: If somehow it is not string of float
+                        self.duration = None
+
+                if not self.duration:
+                    log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe or pymediainfo. '
+                              'This does not affect the ability of the bot. However, estimated time for this entry '
+                              'will not be unavailable and estimated time of the queue will also not be available '
+                              'until this entry got removed.\n'
+                              'entry file: {}'.format(self.filename))
+                else:
+                    log.debug('Get duration of {} as {} seconds by inspecting it directly'.format(self.filename, self.duration))
+
+            if self.playlist.bot.config.use_experimental_equalization:
+                try:
+                    aoptions = await self.get_mean_volume(self.filename)
+                except Exception as e:
+                    log.error('There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. '
+                              'This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.')
+                    aoptions = "-vn"
+            else:
+                aoptions = "-vn"
+
+            self.aoptions = aoptions
+
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
 
@@ -214,14 +284,94 @@ class URLPlaylistEntry(BasePlaylistEntry):
         finally:
             self._is_downloading = False
 
+    async def run_command(self, cmd):
+        p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
+        stdout, stderr = await p.communicate()
+        return stdout + stderr
+
+    def get(self, program):
+        def is_exe(fpath):
+            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            if not found and sys.platform == 'win32':
+                fpath = fpath + ".exe"
+                found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            return found
+
+        fpath, __ = os.path.split(program)
+        if fpath:
+            if is_exe(program):
+                return program
+        else:
+            for path in os.environ["PATH"].split(os.pathsep):
+                path = path.strip('"')
+                exe_file = os.path.join(path, program)
+                if is_exe(exe_file):
+                    return exe_file
+
+        return None
+
+    async def get_mean_volume(self, input_file):
+        log.debug('Calculating mean volume of {0}'.format(input_file))
+        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json -f null /dev/null'
+        output = await self.run_command(cmd)
+        output = output.decode("utf-8")
+        log.debug(output)
+        # print('----', output)
+
+        I_matches = re.findall(r'"input_i" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (I_matches):
+            log.debug('I_matches={}'.format(I_matches[0][0]))
+            I = float(I_matches[0][0])
+        else:
+            log.debug('Could not parse I in normalise json.')
+            I = float(0)
+
+        LRA_matches = re.findall(r'"input_lra" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (LRA_matches):
+            log.debug('LRA_matches={}'.format(LRA_matches[0][0]))
+            LRA = float(LRA_matches[0][0])
+        else:
+            log.debug('Could not parse LRA in normalise json.')
+            LRA = float(0)
+
+        TP_matches = re.findall(r'"input_tp" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (TP_matches):
+            log.debug('TP_matches={}'.format(TP_matches[0][0]))
+            TP = float(TP_matches[0][0])
+        else:
+            log.debug('Could not parse TP in normalise json.')
+            TP = float(0)
+
+        thresh_matches = re.findall(r'"input_thresh" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (thresh_matches):
+            log.debug('thresh_matches={}'.format(thresh_matches[0][0]))
+            thresh = float(thresh_matches[0][0])
+        else:
+            log.debug('Could not parse thresh in normalise json.')
+            thresh = float(0)
+
+        offset_matches = re.findall(r'"target_offset" : "([-]?([0-9]*\.[0-9]+))', output)
+        if (offset_matches):
+            log.debug('offset_matches={}'.format(offset_matches[0][0]))
+            offset = float(offset_matches[0][0])
+        else:
+            log.debug('Could not parse offset in normalise json.')
+            offset = float(0)
+
+        return '-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:measured_I={}:measured_LRA={}:measured_TP={}:measured_thresh={}:offset={}'.format(I, LRA, TP, thresh, offset)
+
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
         log.info("Download started: {}".format(self.url))
 
-        try:
-            result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
-        except Exception as e:
-            raise ExtractionError(e)
+        retry = True
+        while retry:
+            try:
+                result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
+                break
+            except Exception as e:
+                raise ExtractionError(e)
 
         log.info("Download complete: {}".format(self.url))
 
@@ -252,7 +402,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self.url = url
         self.title = title
         self.destination = destination
-        self.duration = 0
+        self.duration = None
         self.meta = meta
 
         if self.destination:
@@ -292,7 +442,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 meta['channel'] = ch or data['meta']['channel']['name']
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
 
             entry = cls(playlist, url, title, destination=destination, **meta)
             if not destination and filename:

@@ -1,17 +1,42 @@
-FROM alpine:3.4
+FROM alpine:3.11
 
-# Install Dependencies
+# Install dependencies
 RUN apk update \
- && apk add python3-dev ca-certificates gcc make linux-headers musl-dev ffmpeg libffi-dev
+&& apk add --no-cache \
+  ca-certificates \
+  ffmpeg \
+  opus \
+  python3 \
+  libsodium-dev \
+\
+# Install build dependencies
+&& apk add --no-cache --virtual .build-deps \
+  gcc \
+  git \
+  libffi-dev \
+  make \
+  musl-dev \
+  python3-dev 
 
-# Add project source
-ADD . /usr/src/MusicBot
-WORKDIR /usr/src/MusicBot
+# Set working directory
+WORKDIR /usr/src/musicbot
 
-# Create volume for mapping the config
-VOLUME /usr/src/MusicBot/config
+# Add project requirements
+COPY ./requirements.txt ./requirements.txt
 
 # Install pip dependencies
-RUN pip3 install -r requirements.txt
+RUN pip3 install --upgrade pip \
+ && pip3 install --no-cache-dir -r requirements.txt \
+\
+# Clean up build dependencies
+ && apk del .build-deps
 
-CMD python3.5 run.py
+# Add project sources
+COPY . ./
+
+# Create volume for mapping the config
+VOLUME /usr/src/musicbot/config
+
+ENV APP_ENV=docker
+
+CMD ["python3", "dockerentry.py"]
