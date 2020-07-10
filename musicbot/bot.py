@@ -1921,13 +1921,16 @@ class MusicBot(discord.Client):
                 delete_after=30
             )
 
-    async def cmd_summon(self, channel, guild, author, voice_channel):
+    async def cmd_summon(self, channel, guild, author, voice_channel, message):
         """
         Usage:
             {command_prefix}summon
 
         Call the bot to the summoner's voice channel.
         """
+		# Check we were the mentioned bot.
+        if self.config.summon_requires_mention and not any(member.id == self.user.id for member in message.mentions):
+            return
 
         if not author.voice:
             raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))

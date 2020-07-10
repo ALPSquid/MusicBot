@@ -88,6 +88,8 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
+		
+        self.summon_requires_mention = config.get('MusicBot', 'SummonRequiresMention', fallback=ConfigDefaults.summon_requires_mention)
 
         self.collab_playlist_url = config.get('CollabPlaylist', 'URL', fallback=ConfigDefaults.collab_playlist_url)
         self.collab_playlist_lists = config.get('CollabPlaylist', 'Lists', fallback=ConfigDefaults.collab_playlist_lists).split(",")
@@ -370,6 +372,8 @@ class ConfigDefaults:
     leavenonowners = False
     usealias = True
     footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
+	
+    summon_requires_mention = False
 
     collab_playlist_url = 'collab_playlist/playlist.txt'
     collab_playlist_lists = []
