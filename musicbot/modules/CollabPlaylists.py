@@ -11,6 +11,10 @@ from musicbot.constructs import Response
 
 class CollabPlaylists:
 
+    track_weights = {}
+    weight_increment = 0.1
+    start_weight = weight_increment * 10
+
     @staticmethod
     def get_playlist_file(music_bot, playlist_name):
         if playlist_name not in music_bot.config.collab_playlist_lists:
@@ -58,6 +62,10 @@ class CollabPlaylists:
         # Rename
         os.rename(temp_file_name, playlist_url)
 
+        # Add to track weights.
+        if playlist_name in CollabPlaylists.track_weights:
+            CollabPlaylists.track_weights[playlist_name].append(CollabPlaylists.start_weight)
+
         return Response("Added song to collaborative playlist!", delete_after=10)
 
     @staticmethod
@@ -71,7 +79,7 @@ class CollabPlaylists:
         playlist_file.close()
 
         if len(songs) <= track_index:
-            return Response("INvalid track number.")
+            return Response("Invalid track number.")
 
         # Get the song title for the response.
         song_title = songs[track_index].split(",")[1].replace("\n", "")
@@ -80,6 +88,10 @@ class CollabPlaylists:
         # Write changes.
         with open(playlist_url, 'w') as playlist_file:
             playlist_file.writelines(songs)
+
+        # Remove from track weightings.
+        if playlist_name in CollabPlaylists.track_weights:
+            del CollabPlaylists.track_weights[playlist_name][track_index]
 
         return Response("Removed **{0}** from the playlist.".format(song_title), delete_after=30)
 
@@ -114,7 +126,7 @@ class CollabPlaylists:
                     raise exceptions.ExtractionError('Could not extract information from {}\n\n{}'.format(song, e))
                 songs[index] = song + "," + info.get('title', 'Untitled')
                 file_updated = True
-            song_url, song_title = songs[index].split(",")
+            song_url, song_title = songs[index].split(",", 1)
             song_text = "**{0}**. {1}\n".format(index+1, song_title)
             if len(reply_text) + len(song_text) >= DISCORD_MSG_CHAR_LIMIT:
                 content = music_bot._gen_embed()
@@ -148,6 +160,16 @@ class CollabPlaylists:
         if len(songs) == 0:
             return Response(playlist_name + " is empty! Add a song with !AddTune [playlistname] [song_url].", delete_after=20)
 
-        selected_song = random.choice(songs).strip("\n")
+        # Init starting weights for each track index.
+        if playlist_name not in CollabPlaylists.track_weights:
+            CollabPlaylists.track_weights[playlist_name] = [CollabPlaylists.start_weight for i in range(len(songs))]
 
-        return selected_song
+        selected_song = random.choices(songs, CollabPlaylists.track_weights[playlist_name])[0]
+        selected_index = songs.index(selected_song)
+        # Increment each track's weighting.
+        for i in range(len(songs)):
+            CollabPlaylists.track_weights[playlist_name][i] += CollabPlaylists.weight_increment
+        # Push the chosen track way down.
+        CollabPlaylists.track_weights[selected_index] = -(CollabPlaylists.weight_increment * (len(songs) * 0.2))
+
+        return selected_song.strip("\n")
